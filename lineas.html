@@ -1,0 +1,126 @@
+
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Ventas con estacionalidad</title>
+
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      max-width: 1100px;
+      margin: 30px auto;
+      padding: 20px;
+      color: #222;
+    }
+
+    h1, p {
+      text-align: center;
+    }
+
+    #grafica {
+      width: 100%;
+      overflow-x: auto;
+    }
+  </style>
+</head>
+<body>
+
+  <h1>Evolución de ventas mensuales por categoría</h1>
+  <p>Enero 2024 – diciembre 2025 | Datos ficticios</p>
+  <div id="grafica"></div>
+
+  <script type="module">
+    import * as Plot from
+      "https://esm.sh/@observablehq/plot@0.6.17";
+
+    const meses = Array.from({ length: 24 }, (_, i) =>
+      new Date(Date.UTC(2024, i, 1))
+    );
+
+    const ventas = {
+      "Electrónica": [
+        10000,10500,11200,10800,12000,12800,
+        11500,11800,13000,13500,14500,18500,
+        14000,13600,14200,13800,16000,16500,
+        15000,15500,16500,16000,17500,22000
+      ],
+      "Ropa": [
+        6000,6500,7200,6800,7500,8200,
+        7400,6900,7600,8200,8700,12000,
+        8000,7500,8100,8600,10000,10200,
+        8800,8300,9500,9000,9800,13200
+      ],
+      "Hogar": [
+        2800,3000,3400,3100,3600,4000,
+        3300,3100,3700,3900,4300,5800,
+        4000,3500,3900,4200,4800,5300,
+        4300,4100,4900,4500,5000,7000
+      ]
+    };
+
+    const datos = Object.entries(ventas).flatMap(
+      ([categoria, valores]) =>
+        meses.map((fecha, i) => ({
+          fecha,
+          categoria,
+          ventas: valores[i]
+        }))
+    );
+
+    const formatoFecha = new Intl.DateTimeFormat("es-MX", {
+      month: "short",
+      year: "2-digit",
+      timeZone: "UTC"
+    });
+
+    const grafica = Plot.plot({
+      width: 1000,
+      height: 500,
+      marginLeft: 85,
+      marginBottom: 65,
+
+      x: {
+        type: "utc",
+        label: "Mes",
+        ticks: 8,
+        tickFormat: d => formatoFecha.format(d)
+      },
+
+      y: {
+        label: "Ventas (USD)",
+        grid: true,
+        tickFormat: d =>
+          "$" + d.toLocaleString("en-US")
+      },
+
+      color: {
+        domain: ["Electrónica", "Ropa", "Hogar"],
+        range: ["#2563eb", "#f97316", "#16a34a"],
+        legend: true
+      },
+
+      marks: [
+        Plot.line(datos, {
+          x: "fecha",
+          y: "ventas",
+          stroke: "categoria",
+          strokeWidth: 2.5
+        }),
+
+        Plot.dot(datos, {
+          x: "fecha",
+          y: "ventas",
+          stroke: "categoria",
+          fill: "white",
+          r: 3
+        })
+      ]
+    });
+
+    document.querySelector("#grafica").append(grafica);
+  </script>
+
+</body>
+</html>

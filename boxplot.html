@@ -1,0 +1,145 @@
+
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Equidad salarial por departamento</title>
+
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      max-width: 1100px;
+      margin: 30px auto;
+      padding: 20px;
+      color: #222;
+    }
+
+    h1, .subtitulo {
+      text-align: center;
+    }
+
+    #grafica {
+      width: 100%;
+      overflow-x: auto;
+    }
+
+    .nota {
+      color: #555;
+      font-size: 14px;
+      text-align: center;
+    }
+  </style>
+</head>
+
+<body>
+  <h1>Equidad salarial entre departamentos</h1>
+  <p class="subtitulo">
+    Distribución de salarios individuales | Datos ficticios
+  </p>
+
+  <div id="grafica"></div>
+  <p class="nota">
+    Salarios expresados en dólares (USD). Cada caja representa
+    la distribución salarial de un departamento.
+  </p>
+
+  <script type="module">
+    import * as Plot from
+      "https://esm.sh/@observablehq/plot@0.6.17";
+
+    // Generar 60 salarios ficticios por departamento.
+    // La fórmula hace que los datos sean reproducibles.
+    const departamentos = [
+      { nombre: "Ventas", base: 5200, amplitud: 2100 },
+      { nombre: "Marketing", base: 5800, amplitud: 1800 },
+      { nombre: "IT", base: 7800, amplitud: 2600 },
+      { nombre: "Finanzas", base: 6900, amplitud: 2200 },
+      { nombre: "Recursos Humanos", base: 5700, amplitud: 1500 }
+    ];
+
+    const datos = [];
+
+    departamentos.forEach((dep, d) => {
+      for (let i = 0; i < 60; i++) {
+        // Variación determinista para simular salarios individuales.
+        const variacion =
+          Math.sin((i + 1) * (d + 2) * 1.37) * dep.amplitud * 0.65 +
+          Math.cos((i + 3) * 0.73) * dep.amplitud * 0.35;
+
+        let salario = Math.round(dep.base + variacion);
+
+        // Añadir algunos salarios extremos para ilustrar atípicos.
+        if (i === 58 && (d === 0 || d === 2)) {
+          salario = dep.base + dep.amplitud * 3;
+        }
+
+        if (i === 59 && d === 1) {
+          salario = Math.max(1800, dep.base - dep.amplitud * 2);
+        }
+
+        datos.push({
+          departamento: dep.nombre,
+          salario: salario
+        });
+      }
+    });
+
+    const grafica = Plot.plot({
+      width: 1000,
+      height: 550,
+      marginLeft: 85,
+      marginBottom: 100,
+
+      x: {
+        label: "Departamento",
+        domain: departamentos.map(d => d.nombre),
+        tickRotate: -15
+      },
+
+      y: {
+        label: "Salario individual (USD)",
+        grid: true,
+        tickFormat: d => "$" + d.toLocaleString("en-US"),
+        domain: [0, 16000]
+      },
+
+      color: {
+        domain: departamentos.map(d => d.nombre),
+        range: ["#3b82f6", "#f97316", "#16a34a", "#8b5cf6", "#14b8a6"],
+        legend: false
+      },
+
+      marks: [
+        /*
+        Plot.boxY(datos, {
+          x: "departamento",
+          y: "salario",
+          fill: "departamento",
+          stroke: "departamento",
+          sort: departamentos.map(d => d.nombre),
+          tip: true
+        }),
+*/
+
+Plot.boxY(datos, {
+  x: "departamento",
+  y: "salario",
+  fill: "departamento",
+  stroke: "#333333",
+  strokeWidth: 1.5,
+  sort: departamentos.map(d => d.nombre),
+  median: {
+    stroke: "#000000",
+    strokeWidth: 3
+  },
+  tip: true
+}),
+      Plot.ruleY([0])
+    ]
+  });
+
+    document.querySelector("#grafica").append(grafica);
+  </script>
+</body>
+</html>
