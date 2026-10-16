@@ -1,0 +1,7 @@
+# Requerimientos para el proyecto de visualización geoespacial e interactiva
+numpy
+pandas
+matplotlib
+geopandas
+requests
+
