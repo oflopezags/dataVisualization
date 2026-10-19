@@ -1,0 +1,336 @@
+
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Boxplot: estudio y rendimiento académico</title>
+
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      max-width: 1250px;
+      margin: 30px auto;
+      padding: 0 20px;
+      color: #263238;
+    }
+
+    h1 {
+      font-size: 25px;
+      margin-bottom: 8px;
+    }
+
+    .descripcion {
+      color: #64748b;
+      line-height: 1.5;
+    }
+
+    .controles {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 18px;
+      padding: 16px;
+      margin: 20px 0;
+      background: #f4f7fb;
+      border-radius: 8px;
+    }
+
+    label {
+      font-weight: bold;
+      display: block;
+      margin-bottom: 6px;
+    }
+
+    select, input {
+      padding: 9px;
+      border: 1px solid #cbd5e1;
+      border-radius: 5px;
+      background: white;
+    }
+
+    #resumen {
+      margin: 16px 0;
+      font-weight: bold;
+      line-height: 1.7;
+    }
+
+    #grafica {
+      width: 100%;
+      overflow-x: auto;
+    }
+
+    #grafica svg {
+      display: block;
+    }
+
+    #estado {
+      margin-top: 12px;
+      color: #64748b;
+      font-size: 14px;
+    }
+  </style>
+</head>
+
+<body>
+
+  <h1>Relación entre horas de estudio y rendimiento académico</h1>
+
+  <p class="descripcion">
+    Comparación de las calificaciones finales mediante diagramas de caja
+    y bigotes, desagregada por sexo.
+  </p>
+
+  <div class="controles">
+    <div>
+      <label for="archivo">Seleccionar archivo CSV</label>
+      <input type="file" id="archivo" accept=".csv">
+    </div>
+
+    <div>
+      <label for="sexo">Sexo del estudiante</label>
+      <select id="sexo">
+        <option value="Todos">Todos</option>
+        <option value="Femenino">Femenino</option>
+        <option value="Masculino">Masculino</option>
+      </select>
+    </div>
+  </div>
+
+  <div id="resumen">Carga el archivo CSV para comenzar.</div>
+  <div id="grafica"></div>
+  <div id="estado"></div>
+
+  <script type="module">
+    import * as Plot from
+      "https://cdn.jsdelivr.net/npm/@observablehq/plot@0.6/+esm";
+
+    import * as d3 from
+      "https://cdn.jsdelivr.net/npm/d3@7/+esm";
+
+    // ---------------------------------------------
+    // 1. Catálogos de las variables
+    // ---------------------------------------------
+
+    const calificaciones = {
+      0: "Fail (0)",
+      1: "DD (1)",
+      2: "DC (2)",
+      3: "CC (3)",
+      4: "CB (4)",
+      5: "BB (5)",
+      6: "BA (6)",
+      7: "AA (7)"
+    };
+
+    const horas = {
+      1: "Ninguna",
+      2: "<5 h",
+      3: "6-10 h",
+      4: "11-20 h",
+      5: ">20 h"
+    };
+
+    const categoriasHoras = [
+      "Ninguna", "<5 h", "6-10 h", "11-20 h", ">20 h"
+    ];
+
+    const sexos = {
+      1: "Femenino",
+      2: "Masculino"
+    };
+
+    const colores = {
+      Femenino: "#df6b24",
+      Masculino: "#2878b5"
+    };
+
+    let datos = [];
+
+    // ---------------------------------------------
+    // 2. Cargar CSV
+    // ---------------------------------------------
+
+    document.querySelector("#archivo").addEventListener(
+      "change", async (evento) => {
+        const archivo = evento.target.files[0];
+        if (!archivo) return;
+
+        try {
+          const texto = await archivo.text();
+          const filas = d3.csvParse(texto);
+
+          const requeridas = ["GRADE", "17", "2"];
+          const faltantes = requeridas.filter(
+            columna => !filas.columns.includes(columna)
+          );
+
+          if (faltantes.length) {
+            throw new Error(
+              "No se encontraron las columnas: " +
+              faltantes.join(", ")
+            );
+          }
+
+          datos = filas.map((fila, i) => {
+            const grade = Number(fila.GRADE);
+            const study = Number(fila["17"]);
+            const sex = Number(fila["2"]);
+
+            return {
+              id: i,
+              grade,
+              study,
+              sex,
+              calificacion: calificaciones[grade],
+              horas: horas[study],
+              sexo: sexos[sex]
+            };
+          }).filter(d =>
+            Number.isFinite(d.grade) &&
+            Number.isFinite(d.study) &&
+            Number.isFinite(d.sex) &&
+            calificaciones[d.grade] &&
+            horas[d.study] &&
+            sexos[d.sex]
+          );
+
+          document.querySelector("#estado").textContent =
+            `${datos.length} registros válidos de ${filas.length} filas.`;
+
+          actualizarGrafica();
+
+        } catch (error) {
+          document.querySelector("#estado").textContent =
+            "Error al cargar el CSV: " + error.message;
+        }
+      }
+    );
+
+    // ---------------------------------------------
+    // 3. Actualizar cuando cambia el sexo
+    // ---------------------------------------------
+
+    document.querySelector("#sexo").addEventListener(
+      "change", actualizarGrafica
+    );
+
+    // ---------------------------------------------
+    // 4. Crear el boxplot
+    // ---------------------------------------------
+
+    function actualizarGrafica() {
+      if (!datos.length) return;
+
+      const seleccion = document.querySelector("#sexo").value;
+
+      const filtrados = datos.filter(d =>
+        seleccion === "Todos" || d.sexo === seleccion
+      );
+
+      const contenedor = document.querySelector("#grafica");
+      contenedor.replaceChildren();
+
+      if (!filtrados.length) {
+        document.querySelector("#resumen").textContent =
+          "No hay datos para esta selección.";
+        return;
+      }
+
+      // Resumen general de la selección
+      const media = d3.mean(filtrados, d => d.grade);
+      const mediana = d3.median(filtrados, d => d.grade);
+
+      document.querySelector("#resumen").textContent =
+        `Sexo: ${seleccion} | ` +
+        `Estudiantes: ${filtrados.length} | ` +
+        `Media: ${media.toFixed(2)} | ` +
+        `Mediana: ${mediana.toFixed(2)}`;
+
+      // Separar por sexo y categoría de horas.
+      // Se omiten combinaciones sin observaciones.
+      const grupos = [];
+
+      for (const categoria of categoriasHoras) {
+        const sexosGrupo = seleccion === "Todos"
+          ? ["Femenino", "Masculino"]
+          : [seleccion];
+
+        for (const sexo of sexosGrupo) {
+          const grupo = filtrados.filter(d =>
+            d.horas === categoria && d.sexo === sexo
+          );
+
+          if (grupo.length > 0) {
+            grupos.push(...grupo);
+          }
+        }
+      }
+
+      const grafica = Plot.plot({
+        width: 1100,
+        height: 540,
+        marginLeft: 105,
+        marginBottom: 85,
+        marginTop: 30,
+        marginRight: 35,
+
+        x: {
+          domain: categoriasHoras,
+          label: "Horas de estudio semanal",
+          tickSize: 0
+        },
+
+        y: {
+          domain: [-0.5, 7.5],
+          ticks: [0, 1, 2, 3, 4, 5, 6, 7],
+          tickFormat: d => calificaciones[d],
+          label: "Calificación final",
+          grid: true
+        },
+
+        color: {
+          domain: ["Femenino", "Masculino"],
+          range: [colores.Femenino, colores.Masculino],
+          legend: true
+        },
+
+        marks: [
+          // Caja: rango intercuartílico y mediana.
+          // Bigotes: extensión según la regla de 1.5 × IQR.
+          Plot.boxY(grupos, {
+            x: "horas",
+            y: "grade",
+            fill: "sexo",
+            stroke: "sexo",
+            fillOpacity: 0.30,
+            strokeWidth: 1.5,
+            fx: undefined,
+            tip: true
+          }),
+
+          // Observaciones individuales para mostrar
+          // los valores reales de las calificaciones.
+          Plot.dot(grupos, {
+            x: "horas",
+            y: "grade",
+            fill: "sexo",
+            r: 3,
+            fillOpacity: 0.60,
+            stroke: "white",
+            strokeWidth: 0.4,
+            title: d =>
+              `Sexo: ${d.sexo}\n` +
+              `Horas de estudio: ${d.horas}\n` +
+              `Calificación: ${d.calificacion}`
+          })
+        ]
+      });
+
+      contenedor.append(grafica);
+    }
+  </script>
+
+</body>
+</html>
+
