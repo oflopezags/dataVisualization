@@ -10,10 +10,8 @@ Para garantizar la reproducibilidad y el orden del proyecto completo, los archiv
 
 ```text
 ├── data/               # Datasets originales (CSV, JSON, Shapefiles/GeoJSON)
-├── pys/          # Archivos python (.py) numerados secuencialmente
-│   ├── 1_carga_y_limpieza.ipynb      # Consumo de APIs (requests) y normalización de texto
-│   ├── 2_eda_exploratorio.ipynb       # Análisis exploratorio inicial (pandas, numpy)
-│   └── 3_visualizaciones_finales.ipynb # Generación de  gráficas avanzadas (matplotlib, geopandas)
+├── pys/          # Archivos python (.py) 
+│   └── barras2.py # Generación de  gráficas avanzadas (matplotlib, geopandas)
 ├── dashboard/          # Archivo o enlace del componente de Business Intelligence (Power BI / Tableau / Python streamlit)
 ├── README.md           # Este documento de presentación del proyecto
 └── requirements.txt    # Archivo con las dependencias del entorno de Python
